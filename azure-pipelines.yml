@@ -26,6 +26,6 @@ steps:
     script: |
       # Write your PowerShell commands here.
       
-      npm build
+      npm run build
 
 
