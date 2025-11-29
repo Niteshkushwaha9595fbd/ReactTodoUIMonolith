@@ -29,7 +29,7 @@ steps:
       npm run build
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)/https://github.com/Niteshkushwaha9595fbd/ReactTodoUIMonolith/build'
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/build'
     ArtifactName: 'drop1'
     publishLocation: 'Container'
     MaxArtifactSize: 200
