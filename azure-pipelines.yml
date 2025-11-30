@@ -21,6 +21,7 @@
         
         npm install
   - task: PowerShell@2
+    displayName: NpmBuildStep
     inputs:
       targetType: 'inline'
       script: |
