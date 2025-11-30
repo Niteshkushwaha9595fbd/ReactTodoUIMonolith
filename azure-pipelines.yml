@@ -27,9 +27,17 @@ steps:
       # Write your PowerShell commands here.
       
       npm run build
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.BinariesDirectory)/build'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/build.zip'
+    replaceExistingArchive: true
+
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)/build'
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/build.zip'
     ArtifactName: 'drop1'
     publishLocation: 'Container'
     MaxArtifactSize: 200
