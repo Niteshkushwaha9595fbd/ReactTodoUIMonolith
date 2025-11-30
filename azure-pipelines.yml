@@ -29,7 +29,7 @@ steps:
       npm run build
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.BinariesDirectory)/build'
+    rootFolderOrFile: '$(Build.BinariesDirectory)/build/'
     includeRootFolder: true
     archiveType: 'zip'
     archiveFile: '$(Build.ArtifactStagingDirectory)/build.zip'
