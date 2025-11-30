@@ -41,7 +41,6 @@
       PathtoPublish: '$(Build.ArtifactStagingDirectory)/build.zip'
       ArtifactName: 'drop1'
       publishLocation: 'Container'
-      MaxArtifactSize: 200
       StoreAsTar: true
 
 
