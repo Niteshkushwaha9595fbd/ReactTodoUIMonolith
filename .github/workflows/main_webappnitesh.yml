@@ -1,72 +1,303 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy Node.js app to Azure Web App - webappnitesh
+name: Reusable Angular CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      # Environment Configuration
+      environment:
+        description: 'Deployment environment'
+        required: false
+        type: string
+        default: 'dev'
+      
+      # Build Configuration
+      node-version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '18.1'
+      
+      build-configuration:
+        description: 'Angular build configuration'
+        required: false
+        type: string
+        default: 'production'
+      
+      run-lint:
+        description: 'Run linting'
+        required: false
+        type: boolean
+        default: true
+      
+      run-tests:
+        description: 'Run tests'
+        required: false
+        type: boolean
+        default: false
+      
+      working-directory:
+        description: 'Working directory'
+        required: false
+        type: string
+        default: '.'
+      
+      # Security Scanning
+      enable-gitleaks:
+        description: 'Enable GitLeaks scan'
+        required: false
+        type: boolean
+        default: true
+      
+      enable-trivy:
+        description: 'Enable Trivy scan'
+        required: false
+        type: boolean
+        default: true
+      
+      enable-sonarqube:
+        description: 'Enable SonarQube scan'
+        required: false
+        type: boolean
+        default: true
+      
+      trivy-severity:
+        description: 'Trivy severity levels'
+        required: false
+        type: string
+        default: 'CRITICAL,HIGH,MEDIUM'
+      
+      skip-security-scan:
+        description: 'Skip all security scans'
+        required: false
+        type: boolean
+        default: false
+      
+      # Docker Configuration
+      docker-registry:
+        description: 'Docker registry URL'
+        required: false
+        type: string
+        default: 'ghcr.io'
+      
+      image-name:
+        description: 'Docker image name'
+        required: false
+        type: string
+        default: 'nit'
+      
+      dockerfile-path:
+        description: 'Path to Dockerfile'
+        required: false
+        type: string
+        default: './Dockerfile'
+      
+      docker-context:
+        description: 'Docker build context'
+        required: false
+        type: string
+        default: '.'
+      
+      docker-build-args:
+        description: 'Docker build arguments (comma separated)'
+        required: false
+        type: string
+        default: ''
+      
+      additional-tags:
+        description: 'Additional Docker tags (comma separated)'
+        required: false
+        type: string
+        default: 'latest'
+      
+      enable-docker-scan:
+        description: 'Enable Docker image scan'
+        required: false
+        type: boolean
+        default: true
+      
+      trivy-image-severity:
+        description: 'Docker image scan severity'
+        required: false
+        type: string
+        default: 'CRITICAL,HIGH'
+      
+      # Kubernetes Configuration
+      k8s-namespace:
+        description: 'Kubernetes namespace'
+        required: false
+        type: string
+        default: 'dev'
+      
+      deployment-name:
+        description: 'Kubernetes deployment name'
+        required: false
+        type: string
+        default: 'angular-app'
+      
+      k8s-manifests:
+        description: 'Kubernetes manifest files (comma separated)'
+        required: false
+        type: string
+        default: 'k8s/deployment.yaml,k8s/service.yaml,k8s/ingress.yaml'
+      
+      create-namespace:
+        description: 'Create namespace if not exists'
+        required: false
+        type: boolean
+        default: true
+      
+      deployment-timeout:
+        description: 'Deployment timeout in minutes'
+        required: false
+        type: string
+        default: '5'
+    
+    secrets:
+      SONAR_TOKEN:
+        description: 'SonarQube authentication token'
+        required: true
+      
+      SONAR_HOST_URL:
+        description: 'SonarQube server URL'
+        required: true
+      
+      SONAR_PROJECT_KEY:
+        description: 'SonarQube project key'
+        required: true
+      
+      AZURE_CREDENTIALS:
+        description: 'Azure service principal credentials'
+        required: true
+      
+      AKS_CLUSTER_NAME:
+        description: 'AKS cluster name'
+        required: true
+      
+      AKS_RESOURCE_GROUP:
+        description: 'Azure resource group name'
+        required: true
+      
+      DOCKER_USERNAME:
+        description: 'Docker registry username (optional)'
+        required: false
+      
+      DOCKER_PASSWORD:
+        description: 'Docker registry password (optional)'
+        required: false
+    
+    outputs:
+      version:
+        description: 'Generated version tag'
+        value: ${{ jobs.build-and-deploy.outputs.version }}
+      
+      image-name:
+        description: 'Full Docker image name'
+        value: ${{ jobs.build-and-deploy.outputs.image-name }}
+      
+      deployment-url:
+        description: 'Application deployment URL'
+        value: ${{ jobs.build-and-deploy.outputs.deployment-url }}
 
 jobs:
-  build:
+  build-and-deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js version
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-
-      - name: npm install, build, and test
-        run: |
-          npm install
-          npm run build --if-present
-          npm run test --if-present
-
-      - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
-
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path: release.zip
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
     
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-
+    outputs:
+      version: ${{ steps.checkout.outputs.version }}
+      image-name: ${{ steps.docker.outputs.image-full-name }}
+      deployment-url: ${{ steps.deploy.outputs.app-url }}
+    
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
+      # Stage 1: Checkout
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          name: node-app
-
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
+          repository: Niteshkushwaha9595fbd/composite-library
+          path: composite-library
       
-      - name: Login to Azure
-        uses: azure/login@v2
+      - name: Checkout Caller Repository
+        uses: actions/checkout@v4
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_179A9F7765224830965251CA151556B7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5B8F6134038E45C5A9B27A7AE0AFE6AB }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D494194FF5B34DE4A5C0E4AD5F12892E }}
-
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
+          path: app
+      
+      - name: Checkout Code
+        id: checkout
+        uses: ./composite-library/.github/actions/checkout-code
         with:
-          app-name: 'webappnitesh'
-          slot-name: 'Production'
-          package: .
-          
+          fetch-depth: 0
+      
+      # Stage 2: Security Scanning
+      - name: Security Scan
+        if: ${{ !inputs.skip-security-scan }}
+        uses: ./composite-library/.github/actions/security-scan
+        with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
+          sonar-host-url: ${{ secrets.SONAR_HOST_URL }}
+          sonar-project-key: ${{ secrets.SONAR_PROJECT_KEY }}
+          enable-gitleaks: ${{ inputs.enable-gitleaks }}
+          enable-trivy: ${{ inputs.enable-trivy }}
+          enable-sonarqube: ${{ inputs.enable-sonarqube }}
+          trivy-severity: ${{ inputs.trivy-severity }}
+          working-directory: app/${{ inputs.working-directory }}
+      
+      # Stage 3: Build Angular App
+      - name: Build Angular App
+        id: build
+        uses: ./composite-library/.github/actions/build-angular
+        with:
+          node-version: ${{ inputs.node-version }}
+          build-configuration: ${{ inputs.build-configuration }}
+          run-lint: ${{ inputs.run-lint }}
+          run-tests: ${{ inputs.run-tests }}
+          working-directory: app/${{ inputs.working-directory }}
+      
+      # Stage 4: Docker Build and Push
+      - name: Docker Build and Push
+        id: docker
+        uses: ./composite-library/.github/actions/docker-build-push
+        with:
+          registry: ${{ inputs.docker-registry }}
+          image-name: ${{ inputs.image-name || github.repository }}
+          image-tag: ${{ steps.checkout.outputs.version }}
+          registry-username: ${{ secrets.DOCKER_USERNAME || github.actor }}
+          registry-password: ${{ secrets.DOCKER_PASSWORD || secrets.GITHUB_TOKEN }}
+          dockerfile-path: app/${{ inputs.dockerfile-path }}
+          context-path: app/${{ inputs.docker-context }}
+          build-args: ${{ inputs.docker-build-args }}
+          enable-trivy-scan: ${{ inputs.enable-docker-scan }}
+          trivy-severity: ${{ inputs.trivy-image-severity }}
+          additional-tags: ${{ inputs.additional-tags }}
+      
+      # Stage 5: Deploy to AKS
+      - name: Deploy to AKS
+        id: deploy
+        uses: ./composite-library/.github/actions/deploy-aks
+        with:
+          azure-credentials: ${{ secrets.AZURE_CREDENTIALS }}
+          aks-cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+          aks-resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          namespace: ${{ inputs.k8s-namespace || inputs.environment }}
+          deployment-name: ${{ inputs.deployment-name }}
+          image-name: ${{ steps.docker.outputs.image-full-name }}
+          manifests-path: ${{ inputs.k8s-manifests }}
+          registry: ${{ inputs.docker-registry }}
+          registry-username: ${{ secrets.DOCKER_USERNAME || github.actor }}
+          registry-password: ${{ secrets.DOCKER_PASSWORD || secrets.GITHUB_TOKEN }}
+          create-namespace: ${{ inputs.create-namespace }}
+          timeout: ${{ inputs.deployment-timeout }}
+      
+      # Summary
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.checkout.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Node Version**: ${{ inputs.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Config**: ${{ inputs.build-configuration }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ steps.docker.outputs.image-full-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Namespace**: ${{ inputs.k8s-namespace || inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.deploy.outputs.deployment-status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.deploy.outputs.app-url }}" >> $GITHUB_STEP_SUMMARY
