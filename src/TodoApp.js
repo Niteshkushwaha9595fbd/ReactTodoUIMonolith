@@ -4,7 +4,7 @@ import { Button, TextField, Container, Typography,Card, CardContent, IconButton 
 import { Delete } from '@mui/icons-material';
 import { Box } from '@mui/material';
 
-const API_BASE_URL = 'http://52.146.33.135:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; 
 
 const backgroundImage = process.env.PUBLIC_URL + '/background.jpg';
 
@@ -14,7 +14,7 @@ function TodoApp() {
 
     const fetchTasks = async () => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/tasks`);
+            const response = await axios.get(`${API_BASE_URL}/api/tasks`);
             setTasks(response.data);
         } catch (error) {
             console.error('Error fetching tasks', error);
@@ -23,7 +23,7 @@ function TodoApp() {
 
     const createTask = async () => {
         try {
-            await axios.post(`${API_BASE_URL}/tasks`, newTask);
+            await axios.post(`${API_BASE_URL}/api/tasks`, newTask);
             fetchTasks();
             setNewTask({ title: '', description: '' });
         } catch (error) {
@@ -33,7 +33,7 @@ function TodoApp() {
 
     const deleteTask = async (taskId) => {
         try {
-            await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
+            await axios.delete(`${API_BASE_URL}/api/tasks/${taskId}`);
             fetchTasks();
         } catch (error) {
             console.error('Error deleting task', error);
